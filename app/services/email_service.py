@@ -36,6 +36,8 @@ class EmailService:
                         "text": text or html,
                     },
                 )
+                print(f"📨 Resend status: {response.status_code}", flush=True)
+                print(f"📨 Resend response: {response.text}", flush=True)
                 return response.status_code == 200
         except Exception as e:
             print(f"Email error: {e}")
