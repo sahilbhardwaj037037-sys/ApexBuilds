@@ -1283,6 +1283,10 @@ if __name__ == '__main__':
         db.create_all()
         seed_data()
     app.run(debug=True, host='0.0.0.0', port=5000)
+else:
+    with app.app_context():
+        db.create_all()
+        seed_data()
 
 @app.route('/quote')
 def quote():
