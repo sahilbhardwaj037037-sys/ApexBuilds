@@ -14,6 +14,10 @@ class EmailService:
 
     async def send_email(self, to, subject, html, text=None):
         """Send email using Resend API"""
+
+        print(f"🔑 API key exists: {bool(self.api_key)}", flush=True)
+        print(f"🔑 API key prefix: {self.api_key[:7] if self.api_key else 'NONE'}", flush=True)
+        print(f"📤 From email: {self.from_email}", flush=True)
         if not self._is_configured():
             print(f"\n📧 [DEV MODE - no real RESEND_API_KEY set] Email not actually sent.", flush=True)
             print(f"   To: {to}", flush=True)
