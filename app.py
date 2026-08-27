@@ -387,11 +387,18 @@ def register():
         db.session.commit()
         # Send verification email
         token = generate_verification_token(email)
+        print("🔵 Starting verification email...", flush=True)
         try:
-            asyncio.run(email_service.send_verification_email(email, first_name, token))
+            result = asyncio.run(
+                email_service.send_verification_email(email, first_name, token)
+            )
+            print(f"🟢 Verification email result: {result}", flush=True)
         except Exception as e:
-            print(f"Verification email failed: {e}", flush=True)
-        return render_template('register.html', success='Registration successful! Please check your email to verify.')
+            print(f"🔴 Verification email failed: {e}", flush=True)
+        return render_template(
+            'register.html',
+            success='Registration successful! Please check your email to verify.'
+        )
     return render_template('register.html')
 
 @app.route('/logout')
