@@ -5,7 +5,7 @@ from flask import current_app
 class EmailService:
     def __init__(self):
         self.api_key = os.getenv('RESEND_API_KEY')
-        self.from_email = os.getenv('EMAIL_FROM', 'noreply@apexbuildinteriors.com')
+        self.from_email = os.getenv('EMAIL_FROM', 'onboarding@resend.dev')
         self.base_url = "https://api.resend.com"
 
     def _is_configured(self):
