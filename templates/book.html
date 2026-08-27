@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="py-20 bg-light min-h-screen">
+    <div class="container mx-auto px-4 max-w-2xl">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-primary">📅 Book a Consultation</h1>
+            <p class="text-gray-500 mt-2">Schedule a consultation with our design team</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-8">
+            <form method="POST" action="/book/submit">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Service</label>
+                        <select name="service" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#c9a96e]" required>
+                            <option value="">Select a service</option>
+                            {% for service in services %}
+                            <option value="{{ service.name }}">{{ service.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Date</label>
+                        <input type="date" name="date" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#c9a96e]" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Time</label>
+                        <select name="time" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#c9a96e]" required>
+                            <option value="">Select time</option>
+                            <option value="09:00">09:00 AM</option>
+                            <option value="10:00">10:00 AM</option>
+                            <option value="11:00">11:00 AM</option>
+                            <option value="14:00">02:00 PM</option>
+                            <option value="15:00">03:00 PM</option>
+                            <option value="16:00">04:00 PM</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Notes (Optional)</label>
+                        <textarea name="notes" rows="3" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#c9a96e]" placeholder="Any specific requirements..."></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-[#c9a96e] text-white py-3 rounded-lg hover:bg-[#b08a4a] transition">Submit Booking</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

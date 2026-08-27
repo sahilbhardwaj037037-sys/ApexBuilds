@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}ApexBuild Interiors{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Premium Dark Navbar */
+        .navbar-premium {
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            border-bottom: 1px solid rgba(201, 169, 110, 0.15);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+        .navbar-premium .nav-link {
+            color: rgba(255, 255, 255, 0.7);
+            transition: all 0.3s ease;
+        }
+        .navbar-premium .nav-link:hover {
+            color: #c9a96e;
+        }
+        .navbar-premium .nav-link::after {
+            background: #c9a96e;
+        }
+        .navbar-premium .brand-text {
+            color: #ffffff;
+        }
+        .navbar-premium .brand-gold {
+            color: #c9a96e;
+        }
+        /* Mobile menu dark */
+        .mobile-menu-dark {
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+            border-top: 1px solid rgba(201, 169, 110, 0.1);
+        }
+        .mobile-menu-dark a {
+            color: rgba(255, 255, 255, 0.8);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .mobile-menu-dark a:hover {
+            color: #c9a96e;
+        }
+        /* Hamburger icon color */
+        .hamburger-bar {
+            background: #c9a96e;
+        }
+        /* Buttons */
+        .btn-admin {
+            background: #c9a96e;
+            color: #0f0f1a;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-admin:hover {
+            background: #d4af37;
+            transform: scale(1.05);
+        }
+        .btn-get-started {
+            background: #c9a96e;
+            color: #0f0f1a;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-get-started:hover {
+            background: #d4af37;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <!-- Premium Dark Navbar -->
+    <nav class="navbar-premium fixed top-0 left-0 right-0 z-50 overflow-x-hidden">
+        <div class="container mx-auto px-3 sm:px-4">
+            <div class="flex items-center justify-between h-14 sm:h-16">
+                <!-- Logo -->
+                <a href="/" class="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
+                    <span class="text-lg sm:text-xl font-bold font-['Playfair_Display'] brand-text whitespace-nowrap">APEXBUILD</span>
+                    <span class="text-[10px] sm:text-xs font-semibold brand-gold hidden sm:inline">INTERIORS</span>
+                </a>
+                
+                <!-- Desktop Nav -->
+                <div class="hidden md:flex items-center space-x-3 lg:space-x-5">
+                    <a href="/" class="nav-link text-xs lg:text-sm">Home</a>
+                    <a href="/services" class="nav-link text-xs lg:text-sm">Services</a>
+                    <a href="/projects" class="nav-link text-xs lg:text-sm">Projects</a>
+                    <a href="/blog" class="nav-link text-xs lg:text-sm">Blog</a>
+                    <a href="/contact" class="nav-link text-xs lg:text-sm">Contact</a>
+                    <div class="relative group">
+                        <button class="nav-link text-xs lg:text-sm flex items-center gap-1">More ▾</button>
+                        <div class="absolute right-0 mt-2 w-44 bg-[#1a1a2e] rounded-lg shadow-xl py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 border border-white/10">
+                            <a href="/about" class="block px-4 py-1.5 text-xs lg:text-sm text-white/70 hover:text-gold hover:bg-white/5">About</a>
+                            <a href="/faq" class="block px-4 py-1.5 text-xs lg:text-sm text-white/70 hover:text-gold hover:bg-white/5">FAQ</a>
+                            <a href="/book" class="block px-4 py-1.5 text-xs lg:text-sm text-white/70 hover:text-gold hover:bg-white/5">📅 Book</a>
+                            <a href="/payment" class="block px-4 py-1.5 text-xs lg:text-sm text-white/70 hover:text-gold hover:bg-white/5">💳 Pay</a>
+                            {% if current_user.is_authenticated and current_user.role == 'ADMIN' %}
+                                <hr class="my-1 border-white/10">
+                                <a href="/admin/blog" class="block px-4 py-1.5 text-xs lg:text-sm text-white/70 hover:text-gold hover:bg-white/5">📝 Blog</a>
+                                <a href="/admin/faq" class="block px-4 py-1.5 text-xs lg:text-sm text-white/70 hover:text-gold hover:bg-white/5">❓ FAQ</a>
+                                <a href="/admin/invoices" class="block px-4 py-1.5 text-xs lg:text-sm text-white/70 hover:text-gold hover:bg-white/5">🧾 Invoices</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Side -->
+                <div class="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.role == 'ADMIN' %}
+                            <a href="/admin" class="btn-admin text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg whitespace-nowrap">⚙️ Admin</a>
+                        {% else %}
+                            <a href="/dashboard" class="nav-link text-xs sm:text-sm text-white/70 hover:text-gold">{{ current_user.first_name[:8] }}</a>
+                        {% endif %}
+                        <a href="/logout" class="text-red-400 hover:text-red-300 text-[10px] sm:text-sm transition">Logout</a>
+                    {% else %}
+                        <a href="/login" class="nav-link text-xs sm:text-sm text-white/70 hover:text-gold">Login</a>
+                        <a href="/register" class="btn-get-started text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg whitespace-nowrap">Get Started</a>
+                    {% endif %}
+                </div>
+                
+                <!-- Hamburger -->
+                <button class="md:hidden flex flex-col gap-1 p-1.5 flex-shrink-0" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+                    <span id="bar1" class="w-5 sm:w-6 h-0.5 hamburger-bar transition-all"></span>
+                    <span id="bar2" class="w-5 sm:w-6 h-0.5 hamburger-bar transition-all"></span>
+                    <span id="bar3" class="w-5 sm:w-6 h-0.5 hamburger-bar transition-all"></span>
+                </button>
+            </div>
+            
+            <!-- Mobile Menu -->
+            <div id="mobile-menu" class="hidden md:hidden pb-4 max-h-[calc(100vh-56px)] overflow-y-auto mobile-menu-dark rounded-b-xl">
+                <div class="flex flex-col space-y-1">
+                    <a href="/" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">Home</a>
+                    <a href="/services" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">Services</a>
+                    <a href="/projects" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">Projects</a>
+                    <a href="/blog" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">Blog</a>
+                    <a href="/contact" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">Contact</a>
+                    <a href="/about" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">About</a>
+                    <a href="/faq" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">FAQ</a>
+                    <a href="/book" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">📅 Book</a>
+                    <a href="/payment" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">💳 Pay</a>
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.role == 'ADMIN' %}
+                            <a href="/admin" class="btn-admin text-xs px-3 py-1.5 rounded-lg text-center mx-2 my-1">⚙️ Admin</a>
+                            <a href="/admin/blog" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">📝 Blog Mgmt</a>
+                            <a href="/admin/faq" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">❓ FAQ Mgmt</a>
+                            <a href="/admin/invoices" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">🧾 Invoices</a>
+                        {% else %}
+                            <a href="/dashboard" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">{{ current_user.first_name }}</a>
+                        {% endif %}
+                        <a href="/logout" class="text-red-400 text-sm py-2.5 px-2 hover:bg-white/5 transition">Logout</a>
+                    {% else %}
+                        <a href="/login" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">Login</a>
+                        <a href="/register" class="btn-get-started text-xs px-3 py-1.5 rounded-lg text-center mx-2 my-1">Get Started</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <main class="pt-14 sm:pt-16">{% block content %}{% endblock %}</main>
+    
+    <footer class="bg-[#0f0f1a] text-white/40 py-6 border-t border-white/5">
+        <div class="container mx-auto px-4 text-center text-sm">
+            &copy; 2024 ApexBuild Interiors. All rights reserved.
+        </div>
+    </footer>
+    
+    <script>
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            const b1 = document.getElementById('bar1');
+            const b2 = document.getElementById('bar2');
+            const b3 = document.getElementById('bar3');
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                b1.classList.add('rotate-45', 'translate-y-2');
+                b2.classList.add('opacity-0');
+                b3.classList.add('-rotate-45', '-translate-y-2');
+            } else {
+                menu.classList.add('hidden');
+                b1.classList.remove('rotate-45', 'translate-y-2');
+                b2.classList.remove('opacity-0');
+                b3.classList.remove('-rotate-45', '-translate-y-2');
+            }
+        }
+    </script>
+</body>
+</html>

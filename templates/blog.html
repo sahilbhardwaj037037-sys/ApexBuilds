@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="pt-32 pb-16 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f1a]">
+    <div class="container mx-auto px-4 text-center">
+        <span class="text-[#c9a96e] text-sm font-semibold uppercase tracking-wider border-l-4 border-[#c9a96e] pl-4">Blog</span>
+        <h1 class="text-4xl md:text-5xl font-bold text-white mt-4">Design Insights & Inspiration</h1>
+        <p class="text-white/70 mt-4 max-w-2xl mx-auto">Stay updated with the latest interior design trends, tips, and stories.</p>
+    </div>
+</section>
+
+<section class="section-padding bg-light">
+    <div class="container mx-auto px-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {% for post in posts %}
+            <div class="card overflow-hidden group">
+                <div class="relative h-48 overflow-hidden">
+                    {% if post.image %}
+                    <img src="{{ post.image }}" alt="{{ post.title }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                    {% else %}
+                    <div class="w-full h-full bg-gray-200 flex items-center justify-center text-4xl">📝</div>
+                    {% endif %}
+                    <span class="absolute top-4 left-4 bg-[#c9a96e] text-white text-xs font-semibold px-3 py-1 rounded-full">{{ post.category }}</span>
+                </div>
+                <div class="p-6">
+                    <p class="text-sm text-gray-400">{{ post.created_at.strftime('%B %d, %Y') }}</p>
+                    <h3 class="text-xl font-bold text-[#1a1a2e] mt-2 group-hover:text-[#c9a96e] transition">{{ post.title }}</h3>
+                    <p class="text-gray-500 text-sm mt-2">{{ post.excerpt[:120] }}...</p>
+                    <a href="/blog/{{ post.slug }}" class="text-[#c9a96e] font-medium mt-4 inline-block hover:text-[#b08a4a] transition">Read More →</a>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-gray-500 col-span-3 text-center">No blog posts available yet. Check back soon!</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="user-dashboard">
+    <div class="dashboard-orb dashboard-orb-1"></div>
+    <div class="dashboard-orb dashboard-orb-2"></div>
+
+    <div class="container mx-auto px-4 dashboard-container">
+
+        <!-- Welcome -->
+        <section class="dashboard-hero dashboard-reveal">
+            <div>
+                <div class="dashboard-eyebrow">
+                    <span class="dashboard-pulse"></span>
+                    CLIENT PORTAL
+                </div>
+
+                <h1>Welcome back, <span>{{ user.first_name }}</span> 👋</h1>
+                <p>Everything related to your projects, bookings and documents — all in one place.</p>
+            </div>
+
+            <div class="dashboard-actions">
+                <a href="/dashboard/invoices" class="dashboard-action-btn">
+                    <span>💰</span>
+                    <span>Invoices</span>
+                </a>
+
+                <a href="/dashboard/documents" class="dashboard-action-btn">
+                    <span>📄</span>
+                    <span>Documents</span>
+                </a>
+
+                <a href="/dashboard/profile" class="dashboard-action-btn dashboard-profile-btn">
+                    <span>✏️</span>
+                    <span>Profile</span>
+                </a>
+            </div>
+        </section>
+
+        <!-- Stats -->
+        <section class="dashboard-stats-modern">
+            <div class="modern-stat-card dashboard-reveal">
+                <div class="stat-icon stat-icon-project">📐</div>
+                <div class="stat-content">
+                    <span class="stat-label-modern">ACTIVE PROJECTS</span>
+                    <div class="stat-number-modern">{{ user.projects|length if user.projects else 0 }}</div>
+                </div>
+                <div class="stat-glow"></div>
+            </div>
+
+            <div class="modern-stat-card dashboard-reveal">
+                <div class="stat-icon stat-icon-booking">📅</div>
+                <div class="stat-content">
+                    <span class="stat-label-modern">BOOKINGS</span>
+                    <div class="stat-number-modern">{{ user.bookings|length if user.bookings else 0 }}</div>
+                </div>
+                <div class="stat-glow"></div>
+            </div>
+
+            <div class="modern-stat-card dashboard-reveal">
+                <div class="stat-icon stat-icon-document">📄</div>
+                <div class="stat-content">
+                    <span class="stat-label-modern">DOCUMENTS</span>
+                    <div class="stat-number-modern">{{ user.documents|length if user.documents else 0 }}</div>
+                </div>
+                <div class="stat-glow"></div>
+            </div>
+        </section>
+
+        <!-- Documents -->
+        {% if user.documents %}
+        <section class="dashboard-section dashboard-reveal">
+            <div class="section-heading">
+                <div>
+                    <span class="section-kicker">YOUR FILES</span>
+                    <h2>My Documents</h2>
+                </div>
+                <a href="/dashboard/documents" class="section-link">View all <span>→</span></a>
+            </div>
+
+            <div class="documents-modern-grid">
+                {% for doc in user.documents[:3] %}
+                <div class="modern-document-card">
+                    <div class="document-icon">📄</div>
+
+                    <div class="document-info">
+                        <h4>{{ doc.name }}</h4>
+                        <p>{{ doc.file_type }}</p>
+                    </div>
+
+                    <a href="{{ doc.file_url }}" target="_blank" class="document-download">
+                        ↓
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Projects -->
+        <section class="dashboard-section dashboard-reveal">
+            <div class="section-heading">
+                <div>
+                    <span class="section-kicker">WORKSPACE</span>
+                    <h2>My Projects</h2>
+                </div>
+            </div>
+
+            <div class="projects-modern-grid">
+                {% for project in user.projects %}
+                <article class="modern-project-card">
+                    <div class="project-card-top">
+                        <div class="project-status-dot"></div>
+                        <span>{{ project.status }}</span>
+                    </div>
+
+                    <h3>{{ project.title }}</h3>
+
+                    <p class="project-description">
+                        {{ project.description[:120] }}{% if project.description|length > 120 %}...{% endif %}
+                    </p>
+
+                    <div class="project-progress-area">
+                        <div class="progress-header">
+                            <span>Project progress</span>
+                            <strong>{{ project.progress if project.progress is defined else 0 }}%</strong>
+                        </div>
+
+                        <div class="modern-progress-track">
+                            <div class="modern-progress-bar"
+                                 style="width: {{ project.progress if project.progress is defined else 0 }}%">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="project-card-footer">
+                        <span class="project-id">PROJECT #{{ project.id }}</span>
+
+                        <a href="/my-projects/{{ project.id }}" class="project-view-btn">
+                            Open project
+                            <span>→</span>
+
+                            {% if unread_counts.get(project.id) %}
+                            <b>{{ unread_counts.get(project.id) }}</b>
+                            {% endif %}
+                        </a>
+                    </div>
+                </article>
+
+                {% else %}
+                <div class="dashboard-empty-state">
+                    <div class="empty-icon">🏗️</div>
+                    <h3>No projects yet</h3>
+                    <p>Your upcoming projects will appear here.</p>
+                    <a href="/contact">Start a project →</a>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Bookings -->
+        <section class="dashboard-section dashboard-reveal dashboard-last-section">
+            <div class="section-heading">
+                <div>
+                    <span class="section-kicker">SCHEDULE</span>
+                    <h2>My Bookings</h2>
+                </div>
+            </div>
+
+            <div class="bookings-modern-list">
+                {% for booking in user.bookings %}
+                <div class="modern-booking-card">
+                    <div class="booking-date-icon">📅</div>
+
+                    <div class="booking-main">
+                        <h3>{{ booking.service }}</h3>
+                        <p>{{ booking.date }} <span>•</span> {{ booking.time }}</p>
+                    </div>
+
+                    <div class="booking-side">
+                        <span class="modern-status
+                            {% if booking.status == 'CONFIRMED' %}status-confirmed
+                            {% elif booking.status == 'PENDING' %}status-pending
+                            {% elif booking.status == 'CANCELLED' %}status-cancelled
+                            {% else %}status-default{% endif %}">
+                            {{ booking.status }}
+                        </span>
+
+                        {% if booking.status == 'PENDING' %}
+                        <form method="POST" action="/my-bookings/{{ booking.id }}/cancel"
+                              onsubmit="return confirm('Cancel this booking?')">
+                            <button type="submit" class="booking-cancel-btn">Cancel</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% else %}
+                <div class="dashboard-empty-state">
+                    <div class="empty-icon">📆</div>
+                    <h3>No bookings yet</h3>
+                    <p>Schedule a consultation whenever you're ready.</p>
+                    <a href="/book">Book a consultation →</a>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+    </div>
+</div>
+{% endblock %}

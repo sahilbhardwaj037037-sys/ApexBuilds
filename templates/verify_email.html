@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gray-50 py-20">
+    <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-md text-center">
+        <div class="text-6xl mb-4">
+            {% if success %}✅{% else %}❌{% endif %}
+        </div>
+        <h2 class="text-3xl font-bold text-primary">
+            {% if success %}Email Verified!{% else %}Verification Failed{% endif %}
+        </h2>
+        <p class="text-gray-500 mt-2">
+            {% if success %}
+                Your email has been verified successfully. You can now login to your account.
+            {% else %}
+                {{ error }}
+            {% endif %}
+        </p>
+        <div class="mt-6">
+            <a href="{% if success %}/login{% else %}/register{% endif %}" 
+               class="btn-primary inline-block">
+                {% if success %}Login Now{% else %}Try Again{% endif %}
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

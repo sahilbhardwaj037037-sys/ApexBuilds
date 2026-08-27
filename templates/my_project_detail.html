@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="py-16 bg-light min-h-screen">
+    <div class="container mx-auto px-4 max-w-3xl">
+        <a href="/dashboard" class="text-gray-500 hover:text-gray-700 text-sm">← Back to Dashboard</a>
+
+        <div class="bg-white rounded-xl shadow-lg p-6 mt-4">
+            <h1 class="text-2xl font-bold text-primary">{{ project.title }}</h1>
+            <p class="text-gray-500 text-sm mt-1">{{ project.location }} &middot; {{ project.category }}</p>
+            <p class="text-gray-700 mt-4">{{ project.description }}</p>
+
+            <div class="mt-5">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Progress</span>
+                    <span class="font-medium">{{ project.progress if project.progress is defined else 0 }}%</span>
+                </div>
+                <div class="w-full h-2 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                    <div class="h-full bg-[#c9a96e] rounded-full transition-all duration-500"
+                         style="width: {{ project.progress if project.progress is defined else 0 }}%"></div>
+                </div>
+                <span class="inline-block mt-2 text-xs text-gray-400">{{ project.status }}</span>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
+            <h2 class="text-xl font-bold text-primary mb-4">💬 Project Messages</h2>
+
+            <div class="space-y-3 max-h-96 overflow-y-auto mb-4">
+                {% for msg in messages %}
+                <div class="p-3 rounded-lg {% if msg.sender.role == 'ADMIN' %}bg-[#f8f6f0] border border-[#c9a96e]/30{% else %}bg-gray-50{% endif %}">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-semibold {% if msg.sender.role == 'ADMIN' %}text-[#c9a96e]{% else %}text-gray-600{% endif %}">
+                            {% if msg.sender.role == 'ADMIN' %}ApexBuild Team{% else %}You{% endif %}
+                        </span>
+                        <span class="text-xs text-gray-400">{{ msg.created_at.strftime('%b %d, %Y %I:%M %p') }}</span>
+                    </div>
+                    <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ msg.message }}</p>
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-sm">No messages yet. Ask a question about your project below.</p>
+                {% endfor %}
+            </div>
+
+            <form method="POST" action="/my-projects/{{ project.id }}/message" class="flex gap-3">
+                <input type="text" name="message" placeholder="Type a message..." required
+                       class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#c9a96e]">
+                <button type="submit" class="bg-[#c9a96e] text-white px-5 py-2 rounded-lg text-sm hover:bg-[#b08a4a] transition">Send</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

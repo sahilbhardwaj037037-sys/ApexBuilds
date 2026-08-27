@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="py-20 bg-light min-h-screen">
+    <div class="container mx-auto px-4 max-w-2xl">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-primary">💳 Make a Payment</h1>
+            <p class="text-gray-500 mt-2">Secure payment with Stripe</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-8">
+            <form id="payment-form">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Amount</label>
+                        <input type="number" id="amount" name="amount" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#c9a96e]" value="100.00" step="0.01" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Card Number</label>
+                        <input type="text" id="card-number" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#c9a96e]" placeholder="4242 4242 4242 4242" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Expiry</label>
+                            <input type="text" id="card-expiry" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#c9a96e]" placeholder="MM/YY" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">CVC</label>
+                            <input type="text" id="card-cvc" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#c9a96e]" placeholder="123" required>
+                        </div>
+                    </div>
+                    <button type="submit" id="pay-button" class="w-full bg-[#c9a96e] text-white py-3 rounded-lg hover:bg-[#b08a4a] transition">Pay Now</button>
+                </div>
+            </form>
+            <div id="payment-result" class="mt-4 hidden"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('payment-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const button = document.getElementById('pay-button');
+    const resultDiv = document.getElementById('payment-result');
+    
+    button.textContent = 'Processing...';
+    button.disabled = true;
+    resultDiv.classList.add('hidden');
+    
+    const amount = document.getElementById('amount').value;
+    
+    try {
+        const response = await fetch('/create-payment-intent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: parseFloat(amount) * 100 })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            resultDiv.className = 'mt-4 p-4 bg-green-100 text-green-700 rounded-lg';
+            resultDiv.textContent = '✅ Payment successful! Payment ID: ' + data.payment_id;
+            resultDiv.classList.remove('hidden');
+        } else {
+            resultDiv.className = 'mt-4 p-4 bg-red-100 text-red-700 rounded-lg';
+            resultDiv.textContent = '❌ Payment failed: ' + data.error;
+            resultDiv.classList.remove('hidden');
+        }
+    } catch (error) {
+        resultDiv.className = 'mt-4 p-4 bg-red-100 text-red-700 rounded-lg';
+        resultDiv.textContent = '❌ Error: ' + error.message;
+        resultDiv.classList.remove('hidden');
+    }
+    
+    button.textContent = 'Pay Now';
+    button.disabled = false;
+});
+</script>
+{% endblock %}

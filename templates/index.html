@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero min-h-screen flex items-center justify-center text-center">
+    <div class="container mx-auto px-4">
+        <div class="hero-content mx-auto text-center">
+            <span class="hero-badge inline-block mx-auto">✦ Premium Interior Design</span>
+            <h1 class="hero-title">
+                Transform Your<br>Space into
+                <span class="highlight">Extraordinary Design</span>
+            </h1>
+            <p class="hero-subtitle max-w-2xl mx-auto">
+                ApexBuild Interiors delivers premium residential and commercial design,
+                renovation, and architectural visualization across New York and beyond.
+            </p>
+            <div class="hero-actions justify-center">
+                <a href="/contact" class="btn-primary">Start Your Project</a>
+                <a href="/projects" class="btn-secondary">View Our Work</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Services Section -->
+<section class="section-padding bg-light">
+    <div class="container mx-auto px-4">
+        <div class="text-center mb-12">
+            <span class="text-gold font-semibold text-sm uppercase tracking-widest">✦ Our Services</span>
+            <h2 class="text-3xl md:text-4xl font-bold text-primary mt-2">What We Do</h2>
+            <div class="w-16 h-1 bg-gold mx-auto mt-3 rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {% for service in services %}
+            <div class="card text-center">
+                <div class="card-icon">{{ service.icon or '🔧' }}</div>
+                <h3 class="text-xl font-bold text-primary mt-2">{{ service.name }}</h3>
+                <p class="text-gray-500 text-sm mt-1">{{ service.description }}</p>
+                <a href="/services" class="text-gold font-medium mt-4 inline-block hover:text-[#b08a4a] transition">Learn More →</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

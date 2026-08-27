@@ -1,0 +1,23 @@
+# Virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environment secrets
+.env
+.env.*
+
+# Local databases
+*.db
+instance/
+
+# Backup files
+*.bak
+*.backup-*
+*.before_*
+
+# macOS
+.DS_Store
+*.backup

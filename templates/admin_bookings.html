@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="py-20 bg-light min-h-screen">
+    <div class="container mx-auto px-4">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-primary">📅 All Bookings</h1>
+            <a href="/admin" class="text-gray-500 hover:text-gray-700">← Back to Admin</a>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Booked On</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for booking in bookings %}
+                    <tr>
+                        <td class="px-6 py-4">
+                            {% if booking.user %}
+                                {{ booking.user.first_name }} {{ booking.user.last_name }}
+                                <span class="text-gray-400">({{ booking.user.email }})</span>
+                            {% else %}
+                                <span class="text-gray-400">Unknown user</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">{{ booking.service }}</td>
+                        <td class="px-6 py-4 text-sm">{{ booking.date }}</td>
+                        <td class="px-6 py-4 text-sm">{{ booking.time }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate cursor-pointer hover:text-primary hover:underline" onclick="showNoteModal({{ booking.id }})" title="Click to view full note">{{ booking.notes or '-' }}</td>
+                        <td class="px-6 py-4">
+                            <form method="POST" action="/admin/bookings/{{ booking.id }}/status">
+                                <select name="status" onchange="this.form.submit()"
+                                    class="px-2 py-1 rounded-full text-xs font-semibold border-0 cursor-pointer
+                                    {% if booking.status == 'PENDING' %}bg-yellow-100 text-yellow-700
+                                    {% elif booking.status == 'CONFIRMED' %}bg-blue-100 text-blue-700
+                                    {% elif booking.status == 'COMPLETED' %}bg-green-100 text-green-700
+                                    {% elif booking.status == 'CANCELLED' %}bg-red-100 text-red-700
+                                    {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                    <option value="PENDING" {% if booking.status == 'PENDING' %}selected{% endif %}>PENDING</option>
+                                    <option value="CONFIRMED" {% if booking.status == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
+                                    <option value="COMPLETED" {% if booking.status == 'COMPLETED' %}selected{% endif %}>COMPLETED</option>
+                                    <option value="CANCELLED" {% if booking.status == 'CANCELLED' %}selected{% endif %}>CANCELLED</option>
+                                </select>
+                            </form>
+                        </td>
+                        <td class="px-6 py-4 text-sm">{{ booking.created_at.strftime('%b %d, %Y') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="px-6 py-12 text-center text-gray-500">No bookings yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<!-- Note Detail Modal -->
+<div id="noteModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50" onclick="if(event.target===this) closeNoteModal()">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-primary">📝 Booking Note</h3>
+            <button onclick="closeNoteModal()" class="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+        </div>
+        <p id="noteModalContent" class="text-gray-700 whitespace-pre-wrap"></p>
+    </div>
+</div>
+
+<script>
+const bookingNotes = {
+    {% for booking in bookings %}
+    {{ booking.id }}: {{ (booking.notes or 'No notes provided.')|tojson }},
+    {% endfor %}
+};
+
+function showNoteModal(id) {
+    document.getElementById('noteModalContent').textContent = bookingNotes[id];
+    const modal = document.getElementById('noteModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeNoteModal() {
+    const modal = document.getElementById('noteModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+</script>
+{% endblock %}

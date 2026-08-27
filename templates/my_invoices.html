@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="py-20 bg-light min-h-screen">
+    <div class="container mx-auto px-4 max-w-4xl">
+        <h1 class="text-3xl font-bold text-primary mb-8">💰 My Invoices</h1>
+        {% if invoices %}
+        <div class="space-y-4">
+            {% for invoice in invoices %}
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-lg font-bold text-primary">#{{ invoice.number }}</span>
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold
+                                {% if invoice.status == 'PAID' %}bg-green-100 text-green-700
+                                {% elif invoice.status == 'DRAFT' %}bg-gray-100 text-gray-700
+                                {% elif invoice.status == 'SENT' %}bg-blue-100 text-blue-700
+                                {% elif invoice.status == 'OVERDUE' %}bg-red-100 text-red-700
+                                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ invoice.status }}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-500">Due: {{ invoice.due_date.strftime('%b %d, %Y') }}</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-[#c9a96e]">${{ "%.2f"|format(invoice.amount) }}</div>
+                        <a href="/invoices/{{ invoice.id }}/pdf" class="inline-block mt-2 text-sm text-blue-500 hover:text-blue-700">📄 Download PDF</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-12 bg-white rounded-xl shadow-lg">
+            <div class="text-6xl mb-4">💰</div>
+            <h3 class="text-xl font-bold text-primary">No Invoices Yet</h3>
+            <p class="text-gray-500 mt-2">Invoices will appear here once generated.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

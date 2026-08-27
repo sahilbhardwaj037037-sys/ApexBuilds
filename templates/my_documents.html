@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="py-20 bg-light min-h-screen">
+    <div class="container mx-auto px-4 max-w-4xl">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-primary">📄 My Documents</h1>
+            <div class="flex gap-3">
+                <a href="/dashboard" class="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100">
+                    ← Back to Dashboard
+                </a>
+                <button onclick="document.getElementById('upload-form').classList.toggle('hidden')" 
+                        class="btn-primary text-sm px-4 py-2">
+                    + Upload Document
+                </button>
+            </div>
+        </div>
+
+        <div id="upload-form" class="hidden bg-white rounded-xl shadow-lg p-6 mb-8">
+            <form method="POST" action="/dashboard/documents/upload" enctype="multipart/form-data">
+                <div class="flex flex-wrap gap-4 items-end">
+                    <div class="flex-1 min-w-[200px]">
+                        <label class="block text-sm font-medium text-gray-700">Choose File</label>
+                        <input type="file" name="file" class="w-full px-4 py-2 border rounded-lg" required>
+                    </div>
+                    <div class="w-40">
+                        <label class="block text-sm font-medium text-gray-700">Type</label>
+                        <select name="file_type" class="w-full px-4 py-2 border rounded-lg">
+                            <option value="QUOTATION">Quotation</option>
+                            <option value="CONTRACT">Contract</option>
+                            <option value="DESIGN">Design</option>
+                            <option value="INVOICE">Invoice</option>
+                            <option value="OTHER">Other</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary text-sm px-6 py-2">Upload</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="space-y-4">
+            {% if documents %}
+                {% for doc in documents %}
+                <div class="bg-white rounded-xl shadow-lg p-4 flex justify-between items-center hover:shadow-xl transition">
+                    <div class="flex items-center gap-4">
+                        <span class="text-3xl">
+                            {% if doc.file_type == 'QUOTATION' %}📄
+                            {% elif doc.file_type == 'CONTRACT' %}📝
+                            {% elif doc.file_type == 'DESIGN' %}🎨
+                            {% elif doc.file_type == 'INVOICE' %}💰
+                            {% else %}📎{% endif %}
+                        </span>
+                        <div>
+                            <h3 class="font-medium text-primary">{{ doc.name }}</h3>
+                            <p class="text-sm text-gray-500">{{ doc.file_type }} • {{ doc.uploaded_at.strftime('%b %d, %Y') }}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <a href="{{ doc.file_url }}" target="_blank" class="text-blue-500 hover:text-blue-700 text-sm">📥 Download</a>
+                        <a href="/dashboard/documents/delete/{{ doc.id }}" class="text-red-500 hover:text-red-700 text-sm" onclick="return confirm('Delete this document?')">🗑️ Delete</a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="text-center py-12 bg-white rounded-xl shadow-lg">
+                <div class="text-6xl mb-4">📄</div>
+                <h3 class="text-xl font-bold text-primary">No Documents Yet</h3>
+                <p class="text-gray-500 mt-2">Upload your first document using the button above.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}

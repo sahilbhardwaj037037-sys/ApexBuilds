@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="py-12 px-4 min-h-screen bg-gradient-to-br from-[#f5f3ed] via-[#f0ece4] to-[#e8e2d8]">
+    <div class="container mx-auto max-w-4xl">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-['Playfair_Display',serif] font-bold text-[#1a1a2e]">👤 User Details</h1>
+            <a href="/admin/users" class="text-[#4a4a5a] hover:text-[#c9a96e] transition">← Back to Users</a>
+        </div>
+
+        <div class="glass-card p-6 rounded-2xl bg-white/70 backdrop-blur-sm border border-white/30 shadow-xl mb-8">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div><span class="text-sm text-[#4a4a5a]/70">Name</span><br><span class="font-medium">{{ user.first_name }} {{ user.last_name }}</span></div>
+                <div><span class="text-sm text-[#4a4a5a]/70">Email</span><br><span class="font-medium">{{ user.email }}</span></div>
+                <div><span class="text-sm text-[#4a4a5a]/70">Role</span><br><span class="font-medium">{{ user.role }}</span></div>
+                <div><span class="text-sm text-[#4a4a5a]/70">VIP</span><br><span class="font-medium">{% if user.is_vip %}⭐ Yes{% else %}No{% endif %}</span></div>
+                <div><span class="text-sm text-[#4a4a5a]/70">Status</span><br><span class="font-medium">{% if user.is_active %}Active{% else %}Blocked{% endif %}</span></div>
+                <div><span class="text-sm text-[#4a4a5a]/70">Joined</span><br><span class="font-medium">{{ user.created_at.strftime('%b %d, %Y') }}</span></div>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 rounded-2xl bg-white/70 backdrop-blur-sm border border-white/30 shadow-xl mb-8">
+            <h2 class="text-xl font-bold text-[#1a1a2e] mb-4">📅 Bookings ({{ bookings|length }})</h2>
+            {% if bookings %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-[#4a4a5a]/70 text-xs uppercase">
+                        <tr><th class="px-4 py-2 text-left">Service</th><th class="px-4 py-2 text-left">Date</th><th class="px-4 py-2 text-left">Time</th><th class="px-4 py-2 text-left">Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for b in bookings %}
+                        <tr class="border-t border-white/20">
+                            <td class="px-4 py-2">{{ b.service }}</td>
+                            <td class="px-4 py-2">{{ b.date }}</td>
+                            <td class="px-4 py-2">{{ b.time }}</td>
+                            <td class="px-4 py-2">{{ b.status }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-[#4a4a5a]/60">No bookings yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="glass-card p-6 rounded-2xl bg-white/70 backdrop-blur-sm border border-white/30 shadow-xl">
+            <h2 class="text-xl font-bold text-[#1a1a2e] mb-4">📐 Projects ({{ projects|length }})</h2>
+            {% if projects %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-[#4a4a5a]/70 text-xs uppercase">
+                        <tr><th class="px-4 py-2 text-left">Title</th><th class="px-4 py-2 text-left">Category</th><th class="px-4 py-2 text-left">Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for p in projects %}
+                        <tr class="border-t border-white/20">
+                            <td class="px-4 py-2">{{ p.title }}</td>
+                            <td class="px-4 py-2">{{ p.category }}</td>
+                            <td class="px-4 py-2">{{ p.status }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-[#4a4a5a]/60">No projects yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

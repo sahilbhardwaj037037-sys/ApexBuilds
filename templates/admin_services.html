@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="py-20 bg-light min-h-screen">
+    <div class="container mx-auto px-4">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-primary">🔧 All Services</h1>
+            <div class="flex gap-2">
+                <a href="/admin/services/new" class="bg-[#c9a96e] text-white px-4 py-2 rounded-lg hover:bg-[#b08a4a] transition">+ New Service</a>
+                <a href="/admin" class="text-gray-500 hover:text-gray-700">← Back</a>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {% for service in services %}
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="text-4xl mb-2">{{ service.icon or '🔧' }}</div>
+                <h3 class="text-xl font-bold text-primary">{{ service.name }}</h3>
+                <p class="text-gray-500 text-sm mt-1">{{ service.description[:80] }}...</p>
+                {% if service.price %}<p class="text-gold font-bold mt-2">${{ service.price }}</p>{% endif %}
+                <div class="flex gap-2 mt-4">
+                    <a href="/admin/services/edit/{{ service.id }}" class="text-blue-500 hover:text-blue-700 text-sm">Edit</a>
+                    <a href="/admin/services/delete/{{ service.id }}" class="text-red-500 hover:text-red-700 text-sm" onclick="return confirm('Delete this service?')">Delete</a>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-gray-500 col-span-3">No services yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

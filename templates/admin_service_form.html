@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="py-20 bg-light min-h-screen">
+    <div class="container mx-auto px-4 max-w-2xl">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-primary">{% if service %}Edit{% else %}Add{% endif %} Service</h1>
+            <a href="/admin/services" class="text-gray-500 hover:text-gray-700">← Back</a>
+        </div>
+        
+        <div class="card p-8">
+            <form method="POST">
+                <div class="space-y-4">
+                    <div>
+                        <label class="auth-label">Service Name</label>
+                        <input type="text" name="name" class="auth-input" value="{{ service.name if service else '' }}" required>
+                    </div>
+                    <div>
+                        <label class="auth-label">Slug</label>
+                        <input type="text" name="slug" class="auth-input" value="{{ service.slug if service else '' }}" required>
+                    </div>
+                    <div>
+                        <label class="auth-label">Description</label>
+                        <textarea name="description" rows="4" class="auth-input" required>{{ service.description if service else '' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="auth-label">Icon (emoji)</label>
+                        <input type="text" name="icon" class="auth-input" value="{{ service.icon if service else '' }}" placeholder="🏠">
+                    </div>
+                    <div>
+                        <label class="auth-label">Price</label>
+                        <input type="number" name="price" class="auth-input" value="{{ service.price if service else '' }}" step="0.01">
+                    </div>
+                    <button type="submit" class="btn-primary w-full">{% if service %}Update{% else %}Create{% endif %} Service</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

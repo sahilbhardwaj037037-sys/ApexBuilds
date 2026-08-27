@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.title }} — {{ project.category }} in {{ project.location }} | ApexBuild Interiors{% endblock %}
+{% block description %}{{ project.description[:155] }}{% endblock %}
+{% block og_title %}{{ project.title }}{% endblock %}
+
+{% block content %}
+<section class="pt-32 pb-16 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f1a]">
+    <div class="container mx-auto px-4">
+        <h1 class="text-4xl md:text-5xl font-bold text-white">{{ project.title }}</h1>
+        <div class="flex flex-wrap gap-4 text-white/60 mt-4">
+            <span>{{ project.category }}</span>
+            <span>•</span>
+            <span>{{ project.location }}</span>
+            <span>•</span>
+            <span>{{ project.created_at.strftime('%B %d, %Y') }}</span>
+        </div>
+    </div>
+</section>
+
+<section class="section-padding bg-light">
+    <div class="container mx-auto px-4 max-w-4xl">
+        <!-- Main Image -->
+        <div class="rounded-xl overflow-hidden shadow-lg mb-8">
+            <img src="{{ project.image }}" alt="{{ project.title }}" class="w-full h-96 object-cover">
+        </div>
+        
+        <!-- Gallery -->
+        {% if project.images %}
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+            {% for img in project.images %}
+            <div class="rounded-lg overflow-hidden shadow">
+                <img src="{{ img.image_url }}" alt="{{ img.caption or project.title }}" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-500 cursor-pointer" onclick="openLightbox('{{ img.image_url }}')">
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Description -->
+        <div class="bg-white rounded-xl shadow-lg p-8">
+            <h2 class="text-2xl font-bold text-primary mb-4">About This Project</h2>
+            <p class="text-gray-600 leading-relaxed">{{ project.description }}</p>
+            
+            {% if project.status %}
+            <div class="mt-6 flex items-center gap-2">
+                <span class="text-sm font-medium text-gray-500">Status:</span>
+                <span class="px-3 py-1 rounded-full text-sm font-semibold 
+                    {% if project.status == 'COMPLETED' %}bg-green-100 text-green-700
+                    {% elif project.status == 'IN_PROGRESS' %}bg-yellow-100 text-yellow-700
+                    {% else %}bg-gray-100 text-gray-700{% endif %}">
+                    {{ project.status }}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Back Button -->
+        <div class="mt-8">
+            <a href="/projects" class="btn-secondary">← Back to Projects</a>
+        </div>
+    </div>
+</section>
+
+<!-- Lightbox Modal -->
+<div id="lightbox" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4" onclick="closeLightbox()">
+    <img id="lightbox-img" src="" alt="Project Image" class="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl">
+    <button class="absolute top-4 right-4 text-white text-4xl hover:text-gold transition" onclick="closeLightbox()">×</button>
+</div>
+
+<script>
+function openLightbox(url) {
+    document.getElementById('lightbox').classList.remove('hidden');
+    document.getElementById('lightbox').classList.add('flex');
+    document.getElementById('lightbox-img').src = url;
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox').classList.add('hidden');
+    document.getElementById('lightbox').classList.remove('flex');
+    document.body.style.overflow = 'auto';
+}
+</script>
+{% endblock %}
