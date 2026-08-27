@@ -164,6 +164,10 @@ class EmailService:
         self.base_url = "https://api.resend.com"
     
     async def send_email(self, to, subject, html, text=None):
+        print(f"🔑 API key exists: {bool(self.api_key)}", flush=True)
+        print(f"🔑 API key prefix: {self.api_key[:7] if self.api_key else 'NONE'}", flush=True)
+        print(f"📤 From email: {self.from_email}", flush=True)
+
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(
@@ -180,11 +184,16 @@ class EmailService:
                         "text": text or html,
                     },
                 )
+
+                print(f"📨 Resend status: {response.status_code}", flush=True)
+                print(f"📨 Resend response: {response.text}", flush=True)
+
                 return response.status_code == 200
+
         except Exception as e:
-            print(f"Email error: {e}")
+            print(f"🔴 Email error: {repr(e)}", flush=True)
             return False
-    
+
     async def send_verification_email(self, email, name, token):
         link = f"{os.getenv('FRONTEND_URL')}/verify-email?token={token}"
         html = f"""
