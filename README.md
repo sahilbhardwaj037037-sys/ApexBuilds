@@ -15,6 +15,7 @@ ApexBuilds presents an interior design studio through a dark, gold-accented webs
 - **Database-backed content:** active services, published projects, blog posts, and ordered FAQs are read through SQLAlchemy models. The contact handler stores enquiries as leads.
 - **A customer workspace:** source includes authenticated project progress views, project messaging, consultation bookings, profile editing, documents, and invoice views with PDF downloads.
 - **An administration area:** source includes role checks and interfaces for managing services, projects, leads, users, bookings, documents, blog posts, FAQs, and invoices.
+- **Protected workflows:** CSRF tokens on state-changing requests, POST-only deletion and logout, owner/admin checks for document downloads, collision-resistant upload filenames, and sessions invalidated after password changes.
 - **Supporting integrations:** bcrypt password hashing, JWT email verification and reset links, Resend email code, and a Stripe PaymentIntent endpoint. Public discovery endpoints include `robots.txt` and a database-aware XML sitemap.
 
 The public pages listed in the capture notes were checked in the browser. Authenticated workflows and integrations were inspected in source, without logging in, submitting forms, sending messages, or initiating payments. Visualization is a listed studio service; the application does not provide a 3D rendering tool.
@@ -96,6 +97,7 @@ source venv/bin/activate
 python -m pip install -r requirements.txt
 
 # Local session configuration; use a fresh development database.
+export APP_ENV=development
 export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
 export DATABASE_URL='sqlite:///apex_xbuild.db'
 export FRONTEND_URL='http://127.0.0.1:5000'
@@ -107,14 +109,29 @@ flask --app app run --host 127.0.0.1 --port 5000
 
 Open [localhost:5000](http://127.0.0.1:5000). Browse `/services`, `/projects`, `/blog`, and `/faq` through the site navigation. The homepage's project enquiry and portfolio calls to action link to `/contact` and `/projects`.
 
-Importing `app` creates tables and seeds sample services, projects, accounts, and a blog post. SQLite's relative database path resolves under Flask's `instance/` directory. The Flask CLI loads the entire module, including the quote routes defined after the direct-run block. Stop the development server with `Ctrl+C`.
+Importing `app` creates tables and seeds sample services, projects, and a blog post. It creates **no accounts by default**. SQLite's relative database path resolves under Flask's `instance/` directory. Both the Flask CLI and direct startup register the quote routes; direct startup binds to localhost without the debugger. Stop the development server with `Ctrl+C`.
 
-The application also reads `.env` through python-dotenv. Environment variables set in the shell take precedence. For an existing checkout, review your local configuration before starting; do not commit `.env` or databases. The empty integration keys above keep email in mock mode and leave Stripe unconfigured. Optional integration settings are `RESEND_API_KEY`, `EMAIL_FROM`, `FRONTEND_URL`, and `STRIPE_SECRET_KEY`; no external integration is required to browse the public pages.
+The application also reads `.env` through python-dotenv. Environment variables set in the shell take precedence. For an existing checkout, review your local configuration before starting; do not commit `.env` or databases. The empty integration keys above disable email delivery and leave Stripe unconfigured. Registration does not bypass verification when email is disabled. Optional integration settings are `RESEND_API_KEY`, `EMAIL_FROM`, `FRONTEND_URL`, and `STRIPE_SECRET_KEY`; no external integration is required to browse the public pages.
+
+## Development accounts and validation
+
+For an isolated local demo, account seeding requires all of the following: `APP_ENV=development`, `SEED_DEMO_ACCOUNTS=1`, and explicit `DEMO_ADMIN_EMAIL`, `DEMO_ADMIN_PASSWORD`, `DEMO_CUSTOMER_EMAIL`, and `DEMO_CUSTOMER_PASSWORD` environment variables. Use distinct emails and freshly generated, distinct passwords of at least 12 characters. For example, `python -c 'import secrets; print(secrets.token_urlsafe(24))'` generates a password locally; keep the result private. Seeding never prints credentials or overwrites existing accounts. Keep the opt-in unset for normal operation; production mode rejects it.
+
+Run the regression suite with the existing virtual environment:
+
+```bash
+python -m unittest discover -s tests -v
+python -m pip check
+```
+
+The suite ignores the local `.env`, uses in-memory SQLite and temporary upload directories, blocks outbound connections, and mocks provider calls. It covers startup/seeding, authentication and role boundaries, token purpose/expiry/replay, session invalidation, CSRF, private documents, quote validation, admin actions, invoice/PDF permissions, redacted logging, and pending-only payment preparation. Browser checks also exercised quote submission, customer/admin login, pending payment feedback, logout, and a sample admin deletion on an isolated local server. No live email or payment service was contacted. These checks are regression coverage, not a security certification.
 
 ## Demo and deployment scope
 
-Seeded project names, studio copy, team profiles, and experience figures are demonstration content, not independently verified client work or business results. The payment interface creates a PaymentIntent but does not implement card confirmation; it is not evidence of a completed payment. The quote submission handler also needs correction because it passes a field absent from the `Lead` model.
+Seeded project names, studio copy, team profiles, and experience figures are demonstration content, not independently verified client work or business results. Quote submissions now validate contact details and preserve the selected service in the existing lead message field. Payment preparation accepts only test-mode Stripe keys and returns an explicit **pending, unconfirmed** state; it does not collect card details, confirm charges, or mark invoices paid. Live keys are rejected until a complete provider-confirmed flow is implemented. Admin invoice status changes remain manual bookkeeping actions.
 
-No hosted deployment URL or hosting configuration was verified in this repository. `app:app` is the WSGI entry point and Gunicorn is listed as a dependency. Before any public deployment, address the fixed-password seeded accounts and development secret fallback, and review authentication, request protection, uploads, and payment handling. Startup logs expose seeded account credentials, and email code logs API key prefixes; do not publish those logs. Authenticated and external workflows require separate functional and security validation.
+No hosted deployment URL or hosting configuration was verified in this repository. `app:app` is the WSGI entry point and Gunicorn is listed as a dependency. Production mode is the default, requires a unique random `SECRET_KEY` of at least 32 characters, and uses secure session cookies over HTTPS. Keep demo seeding disabled and configure email deliberately. Application email logs omit credentials, tokens, recipients, bodies, and provider error details; Werkzeug and Gunicorn access-log filters redact query strings. Configure any upstream proxy or hosting access logs to omit sensitive query strings as well. Route document downloads through Flask; a proxy must not serve `static/uploads/documents/` directly.
+
+For an existing installation, change any historical default account passwords through a trusted recovery process before restoring access, and replace weak or shared deployment secrets manually. Known legacy default passwords are rejected without changing stored accounts. Existing sessions and old-format verification/reset links are invalidated by the security update; users must log in again and request fresh links. New reset links expire after one hour and become invalid after a password change. Never publish `.env`, databases, uploaded customer documents, or old logs. Rotate provider keys if they were included in previously shared logs or responses; key activity and external deployment state were not checked.
 
 The repository contains no `LICENSE` file. Templates reference Unsplash photographs and Google Fonts; image rights and redistribution permissions have not been verified.

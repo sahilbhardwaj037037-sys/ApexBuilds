@@ -10,6 +10,7 @@
         
         <div class="card p-8">
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="space-y-4">
                     <div>
                         <label class="auth-label">Service Name</label>

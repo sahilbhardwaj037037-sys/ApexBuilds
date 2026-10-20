@@ -1,7 +1,6 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file, send_from_directory, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from flask_cors import CORS
 from datetime import datetime
 import bcrypt
 import os
@@ -12,6 +11,14 @@ from datetime import timedelta
 import json
 import asyncio
 import io
+import hashlib
+import secrets
+import hmac
+import logging
+import re
+import posixpath
+from email_validator import validate_email, EmailNotValidError
+from sqlalchemy.exc import IntegrityError
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
@@ -19,16 +26,65 @@ from reportlab.pdfgen import canvas
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
+app.config['APP_ENV'] = os.getenv('APP_ENV', 'production')
+if app.config['APP_ENV'] not in ('production', 'development', 'testing'):
+    raise RuntimeError('APP_ENV must be production, development or testing.')
+secret_key = os.getenv('SECRET_KEY', '')
+if len(secret_key) < 32 or any(word in secret_key.lower() for word in ('your-secret', 'your_secret', 'changeme', 'change-me', 'placeholder')):
+    raise RuntimeError('Set SECRET_KEY to a unique random value of at least 32 characters.')
+app.config['SECRET_KEY'] = secret_key
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///apex_xbuild.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'hide_parameters': True}
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax',
+                  SESSION_COOKIE_SECURE=app.config['APP_ENV'] == 'production',
+                  MAX_CONTENT_LENGTH=16 * 1024 * 1024)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
-CORS(app)
 
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+
+
+class RedactQueryStrings(logging.Filter):
+    def filter(self, record):
+        # Werkzeug access logs must not retain verification/reset query tokens.
+        record.msg = re.sub(r'\?[^\s"\x1b]*', '?[redacted]', record.getMessage())
+        record.args = ()
+        return True
+
+
+for access_logger in ('werkzeug', 'gunicorn.access'):
+    logging.getLogger(access_logger).addFilter(RedactQueryStrings())
+
+
+def csrf_token():
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = secrets.token_urlsafe(32)
+    return session['_csrf_token']
+
+
+app.jinja_env.globals['csrf_token'] = csrf_token
+
+
+@app.before_request
+def protect_mutations():
+    if request.endpoint == 'static':
+        filename = (request.view_args or {}).get('filename', '')
+        normalized = posixpath.normpath(filename.replace('\\', '/')).casefold()
+        if normalized == 'uploads/documents' or normalized.startswith('uploads/documents/'):
+            # Prevent aliases such as repeated slashes from bypassing the
+            # authenticated document route through Flask's generic static route.
+            abort(404)
+    if request.method not in ('GET', 'HEAD', 'OPTIONS'):
+        supplied = request.headers.get('X-CSRF-Token') if request.is_json else request.form.get('csrf_token')
+        expected = session.get('_csrf_token')
+        if (not isinstance(supplied, str) or not expected or
+                not hmac.compare_digest(supplied.encode('utf-8'), expected.encode('utf-8'))):
+            if request.is_json:
+                return jsonify(error='Invalid request token. Reload the page and try again.'), 400
+            abort(400, description='Invalid request token. Reload the page and try again.')
 
 # ==================== MODELS ====================
 
@@ -145,15 +201,56 @@ class Invoice(db.Model):
     
     user = db.relationship('User', backref='invoices')
 
+# Fingerprints of the two publicly committed legacy fixture passwords. Rejecting
+# them also protects existing databases without changing any stored accounts.
+COMPROMISED_PASSWORD_DIGESTS = frozenset(('3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121', '588c55f3ce2b8569b153c5abbf13f9f74308b88a20017cc699b835cc93195d16'))
+
+
+def password_version(user):
+    return hashlib.sha256(user.password.encode('utf-8')).hexdigest()
+
+
 @login_manager.user_loader
 def load_user(user_id):
-    return db.session.get(User, int(user_id))
+    try:
+        user = db.session.get(User, int(user_id))
+    except (TypeError, ValueError):
+        return None
+    if (not user or not user.is_active or not user.is_verified or
+            session.get('auth_version') != password_version(user)):
+        return None
+    return user
+
+
+def valid_new_password(password):
+    return (isinstance(password, str) and 8 <= len(password) and
+            len(password.encode('utf-8')) <= 72 and
+            hashlib.sha256(password.encode('utf-8')).hexdigest() not in COMPROMISED_PASSWORD_DIGESTS)
+
+
+def valid_email(email):
+    if not isinstance(email, str) or len(email) > 100:
+        return False
+    try:
+        validate_email(email, check_deliverability=False)
+        return True
+    except EmailNotValidError:
+        return False
+
 
 def hash_password(password):
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
+
 def verify_password(password, hashed):
-    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+    if not isinstance(password, str) or len(password.encode('utf-8')) > 72:
+        return False
+    if hashlib.sha256(password.encode('utf-8')).hexdigest() in COMPROMISED_PASSWORD_DIGESTS:
+        return False
+    try:
+        return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+    except (ValueError, TypeError):
+        return False
 
 # ==================== EMAIL SERVICE ====================
 
@@ -164,34 +261,22 @@ class EmailService:
         self.base_url = "https://api.resend.com"
     
     async def send_email(self, to, subject, html, text=None):
-        print(f"🔑 API key exists: {bool(self.api_key)}", flush=True)
-        print(f"🔑 API key prefix: {self.api_key[:7] if self.api_key else 'NONE'}", flush=True)
-        print(f"📤 From email: {self.from_email}", flush=True)
-
+        if not self.api_key or self.api_key.startswith('re_xxxx'):
+            app.logger.warning('Email delivery is disabled; no message was sent.')
+            return False
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(
                     f"{self.base_url}/emails",
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "from": self.from_email,
-                        "to": [to],
-                        "subject": subject,
-                        "html": html,
-                        "text": text or html,
-                    },
+                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                    json={"from": self.from_email, "to": [to], "subject": subject,
+                          "html": html, "text": text or html},
                 )
-
-                print(f"📨 Resend status: {response.status_code}", flush=True)
-                print(f"📨 Resend response: {response.text}", flush=True)
-
+                if response.status_code != 200:
+                    app.logger.warning('Email provider rejected delivery.')
                 return response.status_code == 200
-
-        except Exception as e:
-            print(f"🔴 Email error: {repr(e)}", flush=True)
+        except Exception:
+            app.logger.warning('Email delivery failed.')
             return False
 
     async def send_verification_email(self, email, name, token):
@@ -236,20 +321,7 @@ class EmailService:
         """
         return await self.send_email(email, "Welcome to ApexBuild", html)
 
-# Mock email if no real API key is configured (missing OR a placeholder like 're_xxxx...')
 import httpx
-_resend_key = os.getenv('RESEND_API_KEY')
-if not _resend_key or _resend_key.startswith('re_xxxx'):
-    async def mock_send_email(self, to, subject, html, text=None):
-        print(f"\n📧 ===== EMAIL MOCK =====", flush=True)
-        print(f"To: {to}", flush=True)
-        print(f"Subject: {subject}", flush=True)
-        link = html.split('href="')[1].split('"')[0] if 'href="' in html else 'no link'
-        print(f"Link: {link}", flush=True)
-        print(f"=========================\n", flush=True)
-        return True
-    EmailService.send_email = mock_send_email
-    print("🔧 Using mock email (console output only)", flush=True)
 
 email_service = EmailService()
 
@@ -346,11 +418,15 @@ def blog_detail(slug):
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
     if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        email = request.form.get('email', '').strip()
+        phone = request.form.get('phone', '').strip()
+        message = request.form.get('message', '').strip()
+        if (not name or len(name) > 100 or not valid_email(email) or len(phone) > 20 or
+                not message or len(message) > 10000):
+            return render_template('contact.html', error='Please enter valid contact details and a message.'), 400
         lead = Lead(
-            name=request.form.get('name'),
-            email=request.form.get('email'),
-            phone=request.form.get('phone'),
-            message=request.form.get('message')
+            name=name, email=email, phone=phone, message=message
         )
         db.session.add(lead)
         db.session.commit()
@@ -368,7 +444,9 @@ def login():
                 return render_template('login.html', error='Please verify your email first.')
             if not user.is_active:
                 return render_template('login.html', error='Your account is inactive.')
+            session.clear()
             login_user(user)
+            session['auth_version'] = password_version(user)
             session['role'] = user.role
             if user.role == 'ADMIN':
                 return redirect(url_for('admin_dashboard'))
@@ -383,6 +461,9 @@ def register():
         password = request.form.get('password')
         first_name = request.form.get('first_name')
         last_name = request.form.get('last_name')
+        if (not valid_email(email) or not valid_new_password(password) or
+                not first_name or not last_name or len(first_name) > 50 or len(last_name) > 50):
+            return render_template('register.html', error='Enter valid account details and an 8–72 byte password that is not a known default.'), 400
         if User.query.filter_by(email=email).first():
             return render_template('register.html', error='Email already exists')
         user = User(
@@ -393,24 +474,28 @@ def register():
             is_verified=False
         )
         db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            return render_template('register.html', error='Account registration could not be completed.'), 400
         # Send verification email
         token = generate_verification_token(email)
-        print("🔵 Starting verification email...", flush=True)
         try:
             result = asyncio.run(
                 email_service.send_verification_email(email, first_name, token)
             )
-            print(f"🟢 Verification email result: {result}", flush=True)
-        except Exception as e:
-            print(f"🔴 Verification email failed: {e}", flush=True)
+        except Exception:
+            result = False
+            app.logger.warning('Verification email delivery failed.')
         return render_template(
             'register.html',
-            success='Registration successful! Please check your email to verify.'
+            success=('Registration successful! Please check your email to verify.' if result else
+                     'Account created. Email delivery is unavailable; verification is still required.')
         )
     return render_template('register.html')
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 @login_required
 def logout():
     logout_user()
@@ -482,29 +567,49 @@ def upload_document():
     if not allowed_document(file.filename):
         return redirect(url_for('my_documents'))
     filename = secure_filename(file.filename)
+    if not filename or len(filename) > 200:
+        abort(400)
+    stored_filename = f'{secrets.token_hex(16)}-{filename}'
     os.makedirs(DOCUMENT_FOLDER, exist_ok=True)
-    filepath = os.path.join(DOCUMENT_FOLDER, filename)
+    filepath = os.path.join(DOCUMENT_FOLDER, stored_filename)
     file.save(filepath)
     doc = Document(
         user_id=current_user.id,
         name=filename,
-        file_url=f'/{DOCUMENT_FOLDER}/{filename}',
+        file_url=f'/static/uploads/documents/{stored_filename}',
         file_type=request.form.get('file_type', 'OTHER')
     )
     db.session.add(doc)
     db.session.commit()
     return redirect(url_for('my_documents'))
 
-@app.route('/dashboard/documents/delete/<int:id>')
+@app.route('/static/uploads/documents/<path:filename>')
+@login_required
+def download_document(filename):
+    doc = Document.query.filter_by(file_url=f'/static/uploads/documents/{filename}').first_or_404()
+    if current_user.role != 'ADMIN' and doc.user_id != current_user.id:
+        abort(403)
+    return send_from_directory(DOCUMENT_FOLDER, filename, as_attachment=True, download_name=doc.name)
+
+
+def remove_document_file(doc):
+    prefix = '/static/uploads/documents/'
+    filename = doc.file_url.removeprefix(prefix)
+    if not doc.file_url.startswith(prefix) or filename != os.path.basename(filename):
+        abort(400)
+    try:
+        os.remove(os.path.join(DOCUMENT_FOLDER, filename))
+    except OSError:
+        pass
+
+
+@app.route('/dashboard/documents/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_document(id):
     doc = Document.query.get_or_404(id)
     if doc.user_id != current_user.id:
         return redirect(url_for('my_documents'))
-    try:
-        os.remove(doc.file_url[1:])
-    except:
-        pass
+    remove_document_file(doc)
     db.session.delete(doc)
     db.session.commit()
     return redirect(url_for('my_documents'))
@@ -517,16 +622,13 @@ def admin_documents():
     documents = Document.query.order_by(Document.uploaded_at.desc()).all()
     return render_template('admin_documents.html', documents=documents)
 
-@app.route('/admin/documents/<int:id>/delete')
+@app.route('/admin/documents/<int:id>/delete', methods=['POST'])
 @login_required
 def admin_delete_document(id):
     if current_user.role != 'ADMIN':
         return redirect(url_for('dashboard'))
     doc = Document.query.get_or_404(id)
-    try:
-        os.remove(doc.file_url[1:])
-    except OSError:
-        pass
+    remove_document_file(doc)
     db.session.delete(doc)
     db.session.commit()
     return redirect(url_for('admin_documents'))
@@ -619,7 +721,7 @@ def admin_service_edit(id):
         return redirect(url_for('admin_services'))
     return render_template('admin_service_form.html', service=service)
 
-@app.route('/admin/services/delete/<int:id>')
+@app.route('/admin/services/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_service_delete(id):
     if current_user.role != 'ADMIN':
@@ -715,7 +817,7 @@ def admin_project_message(id):
         flash('Message sent!', 'success')
     return redirect(url_for('admin_project_edit', id=id))
 
-@app.route('/admin/projects/delete/<int:id>')
+@app.route('/admin/projects/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_project_delete(id):
     if current_user.role != 'ADMIN':
@@ -758,7 +860,7 @@ def admin_user_toggle(id):
     db.session.commit()
     return redirect(url_for('admin_users'))
 
-@app.route('/admin/users/<int:id>/delete')
+@app.route('/admin/users/<int:id>/delete', methods=['POST'])
 @login_required
 def admin_user_delete(id):
     if current_user.role != 'ADMIN':
@@ -829,7 +931,7 @@ def admin_faq_edit(id):
         return redirect(url_for('admin_faq'))
     return render_template('admin_faq_form.html', faq=faq)
 
-@app.route('/admin/faq/delete/<int:id>')
+@app.route('/admin/faq/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_faq_delete(id):
     if current_user.role != 'ADMIN':
@@ -885,7 +987,7 @@ def admin_blog_edit(id):
         return redirect(url_for('admin_blog'))
     return render_template('admin_blog_form.html', post=post)
 
-@app.route('/admin/blog/delete/<int:id>')
+@app.route('/admin/blog/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_blog_delete(id):
     if current_user.role != 'ADMIN':
@@ -958,12 +1060,12 @@ def update_invoice_status(id):
             """
             try:
                 asyncio.run(email_service.send_email(invoice.user.email, f"Invoice #{invoice.number} from ApexBuild Interiors", html))
-            except Exception as e:
-                print(f"Invoice email failed: {e}", flush=True)
+            except Exception:
+                app.logger.warning('Invoice email delivery failed.')
 
     return redirect(url_for('admin_invoices'))
 
-@app.route('/admin/invoices/<int:id>/delete')
+@app.route('/admin/invoices/<int:id>/delete', methods=['POST'])
 @login_required
 def delete_invoice(id):
     if current_user.role != 'ADMIN':
@@ -1096,8 +1198,8 @@ def book_submit():
             current_user.first_name,
             {'date': booking.date, 'time': booking.time, 'service': booking.service}
         ))
-    except Exception as e:
-        print(f"Booking confirmation email failed: {e}", flush=True)
+    except Exception:
+        app.logger.warning('Booking confirmation email delivery failed.')
 
     return redirect(url_for('dashboard'))
 
@@ -1121,21 +1223,21 @@ def payment():
 @app.route('/create-payment-intent', methods=['POST'])
 @login_required
 def create_payment_intent():
+    data = request.get_json(silent=True)
+    amount = data.get('amount') if isinstance(data, dict) else None
+    if type(amount) is not int or not 50 <= amount <= 99999999:
+        return jsonify(error='Enter a valid amount in whole cents between 50 and 99999999.'), 400
+    if not stripe.api_key or not stripe.api_key.startswith(('sk_test_', 'rk_test_')):
+        return jsonify(error='Payment preparation is unavailable. Live payments are disabled.'), 503
     try:
-        data = request.json
-        amount = data.get('amount', 10000)
-        intent = stripe.PaymentIntent.create(
-            amount=amount,
-            currency='usd',
-            metadata={'user_id': current_user.id}
-        )
-        return jsonify({
-            'success': True,
-            'payment_id': intent.id,
-            'client_secret': intent.client_secret
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        intent = stripe.PaymentIntent.create(amount=amount, currency='usd',
+                                             metadata={'user_id': str(current_user.id)})
+        # Creating an intent is not a charge confirmation. Never mark invoices paid.
+        return jsonify(status='pending', payment_id=intent.id,
+                       message='Payment intent prepared. Payment has not been confirmed.'), 202
+    except Exception:
+        app.logger.warning('Payment intent preparation failed.')
+        return jsonify(error='Payment preparation is unavailable. Please try again later.'), 502
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -1146,10 +1248,10 @@ def forgot_password():
             token = generate_reset_token(email)
             try:
                 asyncio.run(email_service.send_password_reset_email(email, user.first_name, token))
-            except Exception as e:
-                print(f"Password reset email failed: {e}", flush=True)
-            return render_template('forgot_password.html', success='Password reset link sent to your email.')
-        return render_template('forgot_password.html', error='Email not found.')
+            except Exception:
+                app.logger.warning('Password reset email delivery failed.')
+            return render_template('forgot_password.html', success='If the account exists, a password reset has been requested.')
+        return render_template('forgot_password.html', success='If the account exists, a password reset has been requested.')
     return render_template('forgot_password.html')
 
 @app.route('/reset-password', methods=['GET', 'POST'])
@@ -1161,6 +1263,8 @@ def reset_password():
         if not email:
             return render_template('reset_password.html', error='Invalid or expired token.')
         password = request.form.get('password')
+        if not valid_new_password(password):
+            return render_template('reset_password.html', token=token, error='Use an 8–72 byte password that is not a known default.'), 400
         user = User.query.filter_by(email=email).first()
         if user:
             user.password = hash_password(password)
@@ -1189,37 +1293,51 @@ def add_header(response):
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '-1'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
     return response
 
 # ==================== UTILITY FUNCTIONS ====================
 
 def generate_verification_token(email):
-    payload = {
-        'email': email,
-        'exp': datetime.utcnow() + timedelta(hours=24)
-    }
-    return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+    return jwt.encode({'email': email, 'purpose': 'verify_email',
+                       'exp': datetime.utcnow() + timedelta(hours=24)},
+                      app.config['SECRET_KEY'], algorithm='HS256')
+
+
+def decode_token(token, purpose):
+    try:
+        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'],
+                             options={'require': ['exp', 'email', 'purpose']})
+        if payload['purpose'] == purpose and isinstance(payload['email'], str):
+            return payload
+    except jwt.InvalidTokenError:
+        pass
+    return None
+
 
 def verify_verification_token(token):
-    try:
-        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-        return payload.get('email')
-    except:
-        return None
+    payload = decode_token(token, 'verify_email')
+    return payload['email'] if payload else None
+
 
 def generate_reset_token(email):
-    payload = {
-        'email': email,
-        'exp': datetime.utcnow() + timedelta(hours=24)
-    }
-    return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return None
+    return jwt.encode({'email': email, 'purpose': 'reset_password',
+                       'password_version': password_version(user),
+                       'exp': datetime.utcnow() + timedelta(hours=1)},
+                      app.config['SECRET_KEY'], algorithm='HS256')
+
 
 def verify_reset_token(token):
-    try:
-        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-        return payload.get('email')
-    except:
-        return None
+    payload = decode_token(token, 'reset_password')
+    if payload:
+        user = User.query.filter_by(email=payload['email']).first()
+        if user and payload.get('password_version') == password_version(user):
+            return user.email
+    return None
 
 def generate_invoice_number():
     import random
@@ -1256,28 +1374,6 @@ def seed_data():
             project = Project(**data)
             db.session.add(project)
     
-    if not User.query.filter_by(email='admin@apexbuild.com').first():
-        admin = User(
-            email='admin@apexbuild.com',
-            password=hash_password('Admin123!'),
-            first_name='Admin',
-            last_name='User',
-            role='ADMIN',
-            is_verified=True
-        )
-        db.session.add(admin)
-
-    if not User.query.filter_by(email='demo@apexbuild.com').first():
-        demo_user = User(
-            email='demo@apexbuild.com',
-            password=hash_password('Demo123!'),
-            first_name='Demo',
-            last_name='User',
-            role='CUSTOMER',
-            is_verified=True
-        )
-        db.session.add(demo_user)
-    
     if not BlogPost.query.first():
         post = BlogPost(
             title='Welcome to ApexBuild Interiors',
@@ -1290,19 +1386,6 @@ def seed_data():
         db.session.add(post)
     
     db.session.commit()
-    print('✅ Database seeded!')
-    print('📧 Admin: admin@apexbuild.com')
-    print('🔑 Password: Admin123!')
-
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        seed_data()
-    app.run(debug=True, host='0.0.0.0', port=5000)
-else:
-    with app.app_context():
-        db.create_all()
-        seed_data()
 
 @app.route('/quote')
 def quote():
@@ -1310,14 +1393,49 @@ def quote():
 
 @app.route('/quote/submit', methods=['POST'])
 def quote_submit():
-    lead = Lead(
-        name=request.form.get('name'),
-        email=request.form.get('email'),
-        phone=request.form.get('phone'),
-        service=request.form.get('service'),
-        message=request.form.get('description'),
-        status='NEW'
-    )
+    name = request.form.get('name', '').strip()
+    email = request.form.get('email', '').strip()
+    phone = request.form.get('phone', '').strip()
+    service = request.form.get('service', '').strip()
+    description = request.form.get('description', '').strip()
+    if (not name or len(name) > 100 or not valid_email(email) or len(phone) > 20 or
+            not description or len(description) > 10000 or
+            service not in ('', 'Residential Design', 'Commercial Design', 'Renovation')):
+        return render_template('quote.html', error='Please enter valid contact details and a project description.'), 400
+    lead = Lead(name=name, email=email, phone=phone,
+                message=f'Service: {service or "Not specified"}\n\n{description}', status='NEW')
     db.session.add(lead)
     db.session.commit()
-    return render_template('quote.html', success='Quote submitted! We\'ll get back to you soon.')
+    return render_template('quote.html', success="Quote submitted! We'll get back to you soon.")
+
+
+def seed_demo_accounts():
+    if os.getenv('SEED_DEMO_ACCOUNTS') != '1':
+        return
+    if app.config['APP_ENV'] != 'development':
+        raise RuntimeError('Demo accounts are permitted only in development.')
+    accounts = []
+    for prefix, role, name in [('DEMO_ADMIN', 'ADMIN', 'Admin'), ('DEMO_CUSTOMER', 'CUSTOMER', 'Demo')]:
+        email = os.getenv(f'{prefix}_EMAIL', '')
+        password = os.getenv(f'{prefix}_PASSWORD', '')
+        if not valid_email(email) or not valid_new_password(password) or len(password) < 12:
+            raise RuntimeError('Demo accounts require explicit valid emails and unique passwords of at least 12 characters.')
+        accounts.append((email, password, role, name))
+    if accounts[0][0] == accounts[1][0] or accounts[0][1] == accounts[1][1]:
+        raise RuntimeError('Demo accounts require distinct emails and passwords.')
+    for email, password, role, name in accounts:
+        if not User.query.filter_by(email=email).first():
+            db.session.add(User(email=email, password=hash_password(password), first_name=name,
+                                last_name='User', role=role, is_verified=True))
+    db.session.commit()
+
+
+with app.app_context():
+    if os.getenv('SEED_DEMO_ACCOUNTS') == '1' and app.config['APP_ENV'] != 'development':
+        raise RuntimeError('Demo accounts are permitted only in development.')
+    db.create_all()
+    seed_data()
+    seed_demo_accounts()
+
+if __name__ == '__main__':
+    app.run(debug=False, host='127.0.0.1', port=5000)

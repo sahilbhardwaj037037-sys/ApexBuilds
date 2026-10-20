@@ -12,7 +12,10 @@
 <section class="section-padding bg-light">
     <div class="container mx-auto px-4 max-w-3xl">
         <div class="bg-white rounded-xl shadow-lg p-8">
+            {% if error %}<p role="alert" class="text-red-700 mb-4">{{ error }}</p>{% endif %}
+            {% if success %}<p role="status" class="text-green-700 mb-4">{{ success }}</p>{% endif %}
             <form method="POST" action="/quote/submit">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>

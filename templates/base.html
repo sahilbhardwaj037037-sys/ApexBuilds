@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{% block title %}ApexBuild Interiors{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -112,7 +113,8 @@
                         {% else %}
                             <a href="/dashboard" class="nav-link text-xs sm:text-sm text-white/70 hover:text-gold">{{ current_user.first_name[:8] }}</a>
                         {% endif %}
-                        <a href="/logout" class="text-red-400 hover:text-red-300 text-[10px] sm:text-sm transition">Logout</a>
+                        <form method="POST" action="/logout" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="text-red-400 hover:text-red-300 text-[10px] sm:text-sm transition">Logout</button></form>
                     {% else %}
                         <a href="/login" class="nav-link text-xs sm:text-sm text-white/70 hover:text-gold">Login</a>
                         <a href="/register" class="btn-get-started text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg whitespace-nowrap">Get Started</a>
@@ -148,7 +150,8 @@
                         {% else %}
                             <a href="/dashboard" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">{{ current_user.first_name }}</a>
                         {% endif %}
-                        <a href="/logout" class="text-red-400 text-sm py-2.5 px-2 hover:bg-white/5 transition">Logout</a>
+                        <form method="POST" action="/logout" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="text-red-400 text-sm py-2.5 px-2 hover:bg-white/5 transition">Logout</button></form>
                     {% else %}
                         <a href="/login" class="text-sm py-2.5 px-2 border-b border-white/5 hover:bg-white/5 transition">Login</a>
                         <a href="/register" class="btn-get-started text-xs px-3 py-1.5 rounded-lg text-center mx-2 my-1">Get Started</a>

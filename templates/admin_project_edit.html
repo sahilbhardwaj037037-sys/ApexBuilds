@@ -11,6 +11,7 @@
         <div class="bg-white rounded-xl shadow-lg p-8">
             <!-- enctype="multipart/form-data" ADD KARO -->
             <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Title</label>
@@ -148,6 +149,7 @@ function removeImage() {
             {% endfor %}
         </div>
         <form method="POST" action="/admin/projects/{{ project.id }}/message" class="flex gap-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="message" placeholder="Reply to client..." required
                    class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#c9a96e]">
             <button type="submit" class="bg-[#c9a96e] text-white px-5 py-2 rounded-lg text-sm hover:bg-[#b08a4a] transition">Send</button>

@@ -19,7 +19,8 @@
                 {% if service.price %}<p class="text-gold font-bold mt-2">${{ service.price }}</p>{% endif %}
                 <div class="flex gap-2 mt-4">
                     <a href="/admin/services/edit/{{ service.id }}" class="text-blue-500 hover:text-blue-700 text-sm">Edit</a>
-                    <a href="/admin/services/delete/{{ service.id }}" class="text-red-500 hover:text-red-700 text-sm" onclick="return confirm('Delete this service?')">Delete</a>
+                    <form method="POST" action="/admin/services/delete/{{ service.id }}" class="inline" onsubmit="return confirm('Delete this service?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="text-red-500 hover:text-red-700 text-sm">Delete</button></form>
                 </div>
             </div>
             {% else %}

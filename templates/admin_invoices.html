@@ -10,6 +10,7 @@
         </div>
         <div id="create-form" class="hidden bg-white rounded-xl shadow-lg p-6 mb-8">
             <form method="POST" action="/admin/invoices/create">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Customer</label>
@@ -63,6 +64,7 @@
                             <div class="text-2xl font-bold text-[#c9a96e]">${{ "%.2f"|format(invoice.amount) }}</div>
                             <div class="flex gap-2 mt-2">
                                 <form method="POST" action="/admin/invoices/{{ invoice.id }}/status" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <select name="status" onchange="this.form.submit()" class="text-xs border rounded px-2 py-1">
                                         <option value="DRAFT" {% if invoice.status == 'DRAFT' %}selected{% endif %}>Draft</option>
                                         <option value="SENT" {% if invoice.status == 'SENT' %}selected{% endif %}>Sent</option>
@@ -72,7 +74,8 @@
                                     </select>
                                 </form>
                                 <a href="/invoices/{{ invoice.id }}/pdf" class="text-blue-500 hover:text-blue-700 text-sm">📄 PDF</a>
-                                <a href="/admin/invoices/{{ invoice.id }}/delete" class="text-red-500 hover:text-red-700 text-sm" onclick="return confirm('Delete this invoice?')">🗑️</a>
+                                <form method="POST" action="/admin/invoices/{{ invoice.id }}/delete" class="inline" onsubmit="return confirm('Delete this invoice?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="text-red-500 hover:text-red-700 text-sm">🗑️</button></form>
                             </div>
                         </div>
                     </div>

@@ -35,7 +35,8 @@
                     </div>
                     <div class="flex gap-3">
                         <a href="/admin/blog/edit/{{ post.id }}" class="text-blue-500 hover:text-blue-700 text-sm font-medium">✏️ Edit</a>
-                        <a href="/admin/blog/delete/{{ post.id }}" class="text-red-500 hover:text-red-700 text-sm font-medium" onclick="return confirm('Delete this post?')">🗑️ Delete</a>
+                        <form method="POST" action="/admin/blog/delete/{{ post.id }}" class="inline" onsubmit="return confirm('Delete this post?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="text-red-500 hover:text-red-700 text-sm font-medium">🗑️ Delete</button></form>
                     </div>
                 </div>
                 {% endfor %}

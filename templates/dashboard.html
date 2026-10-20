@@ -189,6 +189,7 @@
                         {% if booking.status == 'PENDING' %}
                         <form method="POST" action="/my-bookings/{{ booking.id }}/cancel"
                               onsubmit="return confirm('Cancel this booking?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="booking-cancel-btn">Cancel</button>
                         </form>
                         {% endif %}

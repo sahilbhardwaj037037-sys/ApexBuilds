@@ -28,7 +28,8 @@
                             <span class="ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{{ unread_counts.get(project.id) }} new</span>
                             {% endif %}
                         </a>
-                        <a href="/admin/projects/delete/{{ project.id }}" class="text-red-500 hover:text-red-700 text-sm" onclick="return confirm('Delete this project?')">Delete</a>
+                        <form method="POST" action="/admin/projects/delete/{{ project.id }}" class="inline" onsubmit="return confirm('Delete this project?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="text-red-500 hover:text-red-700 text-sm">Delete</button></form>
                     </div>
                 </div>
             </div>

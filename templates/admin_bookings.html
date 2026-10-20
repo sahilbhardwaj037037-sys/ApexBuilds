@@ -37,6 +37,7 @@
                         <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate cursor-pointer hover:text-primary hover:underline" onclick="showNoteModal({{ booking.id }})" title="Click to view full note">{{ booking.notes or '-' }}</td>
                         <td class="px-6 py-4">
                             <form method="POST" action="/admin/bookings/{{ booking.id }}/status">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <select name="status" onchange="this.form.submit()"
                                     class="px-2 py-1 rounded-full text-xs font-semibold border-0 cursor-pointer
                                     {% if booking.status == 'PENDING' %}bg-yellow-100 text-yellow-700

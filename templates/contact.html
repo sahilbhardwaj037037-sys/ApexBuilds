@@ -15,7 +15,10 @@
             <!-- Contact Form -->
             <div class="card p-8">
                 <h2 class="text-2xl font-bold text-primary">Send a Message</h2>
+                {% if error %}<p role="alert" class="text-red-700 mt-4">{{ error }}</p>{% endif %}
+                {% if success %}<p role="status" class="text-green-700 mt-4">{{ success }}</p>{% endif %}
                 <form method="POST" class="mt-6 space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div>
                         <label class="auth-label">Your Name</label>
                         <input type="text" name="name" class="auth-input" placeholder="John Doe" required>

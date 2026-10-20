@@ -31,6 +31,7 @@
                                     <span class="text-sm text-[#4a4a5a]/70">{{ u.role }}</span>
                                 {% else %}
                                 <form method="POST" action="/admin/users/{{ u.id }}/role" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <select name="role" onchange="this.form.submit()" class="text-sm border rounded-lg px-2 py-1 bg-white/50 border-white/30 focus:ring-2 focus:ring-[#c9a96e]">
                                         <option value="CUSTOMER" {% if u.role == 'CUSTOMER' %}selected{% endif %}>Customer</option>
                                         <option value="ADMIN" {% if u.role == 'ADMIN' %}selected{% endif %}>Admin</option>
@@ -41,6 +42,7 @@
                             </td>
                             <td class="px-6 py-4">
                                 <form method="POST" action="/admin/users/{{ u.id }}/vip" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="text-xl transition-transform hover:scale-125">
                                         {% if u.is_vip %}⭐{% else %}☆{% endif %}
                                     </button>
@@ -51,6 +53,7 @@
                                     <span class="px-3 py-1 rounded-full text-xs font-medium bg-white/50 text-[#4a4a5a] border border-white/30">You</span>
                                 {% else %}
                                 <form method="POST" action="/admin/users/{{ u.id }}/toggle" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="px-3 py-1 rounded-full text-xs font-medium
                                         {% if u.is_active %}bg-green-200/60 text-green-800 border border-green-300/50 hover:bg-green-300/60
                                         {% else %}bg-red-200/60 text-red-800 border border-red-300/50 hover:bg-red-300/60{% endif %}">
@@ -63,7 +66,8 @@
                                 <div class="flex gap-2">
                                     <a href="/admin/users/{{ u.id }}/details" class="text-blue-500 hover:text-blue-700 text-sm">📋 View</a>
                                     {% if u.id != current_user.id %}
-                                    <a href="/admin/users/{{ u.id }}/delete" class="text-red-500 hover:text-red-700 text-sm" onclick="return confirm('Delete this user?')">🗑️</a>
+                                    <form method="POST" action="/admin/users/{{ u.id }}/delete" class="inline" onsubmit="return confirm('Delete this user?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="text-red-500 hover:text-red-700 text-sm">🗑️</button></form>
                                     {% endif %}
                                 </div>
                             </td>
